@@ -1,0 +1,53 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'          # uploads entire repo as-is
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+```
+
+---
+
+**One thing to change in GitHub settings first** — since you're using the Actions workflow instead of deploying from a branch directly:
+```
+Settings → Pages → Source
+change from:  "Deploy from a branch"
+change to:    "GitHub Actions"
+```
+
+---
+
+**That's it.** Every `git push` to `main` will:
+```
+push → workflow triggers → uploads repo → deploys to Pages → live in ~30sec

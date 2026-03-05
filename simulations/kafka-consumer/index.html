@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kafka Consumer Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fff;--bg2:#f8f9fa;--bg3:#f1f3f5;
+  --border:#e9ecef;--border2:#dee2e6;
+  --text:#212529;--text2:#6c757d;--text3:#adb5bd;
+  --accent:#20a7c9;--accent-bg:rgba(32,167,201,.08);
+  --green:#37b24d;--green-bg:rgba(55,178,77,.08);
+  --red:#f03e3e;--red-bg:rgba(240,62,62,.08);
+  --yellow:#f59f00;--yellow-bg:rgba(245,159,0,.08);
+  --purple:#7048e8;--purple-bg:rgba(112,72,232,.08);
+  --orange:#e8590c;--orange-bg:rgba(232,89,12,.08);
+  --teal:#0ca678;--teal-bg:rgba(12,166,120,.08);
+  --mono:'SF Mono','Fira Code',monospace;
+  --sans:'Inter',-apple-system,sans-serif;
+  --r:4px
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* TOPBAR */
+.topbar{height:48px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:14px;flex-shrink:0}
+.brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;letter-spacing:-.2px}
+.bicon{width:20px;height:20px;background:var(--accent);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700}
+.div{width:1px;height:20px;background:var(--border2)}
+.tr{margin-left:auto;display:flex;align-items:center;gap:8px}
+.btn{font-family:var(--sans);font-size:12px;font-weight:500;height:28px;padding:0 12px;border-radius:var(--r);border:1px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .1s;white-space:nowrap}
+.btn-p{background:var(--accent);color:#fff;border-color:var(--accent)}.btn-p:hover{background:#1a96b5}
+.btn-d{background:var(--red);color:#fff;border-color:var(--red)}.btn-d:hover{background:#d63939}
+.btn-g{background:var(--bg);color:var(--text2);border-color:var(--border2)}.btn-g:hover{background:var(--bg3);color:var(--text)}
+.btn:disabled{opacity:.4;pointer-events:none}
+.sg{display:flex}.sp{font-family:var(--mono);font-size:11px;height:26px;padding:0 8px;border:1px solid var(--border2);background:var(--bg);color:var(--text3);cursor:pointer;transition:all .1s;border-right:none}
+.sp:first-child{border-radius:var(--r) 0 0 var(--r)}.sp:last-child{border-radius:0 var(--r) var(--r) 0;border-right:1px solid var(--border2)}
+.sp.on{background:var(--accent);color:#fff;border-color:var(--accent);z-index:1}.sp:hover:not(.on){background:var(--bg3);color:var(--text)}
+.slbl{font-size:11px;color:var(--text3)}
+
+/* MODE SWITCHER */
+.mode-bar{height:40px;border-bottom:1px solid var(--border);display:flex;align-items:stretch;flex-shrink:0;background:var(--bg2)}
+.mode-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:500;color:var(--text3);cursor:pointer;border-right:1px solid var(--border);transition:all .15s;padding:0 8px;border-bottom:2px solid transparent}
+.mode-tab:last-child{border-right:none}
+.mode-tab:hover{background:var(--bg3);color:var(--text)}
+.mode-tab.on{background:var(--bg);color:var(--text);border-bottom-color:var(--accent)}
+.mode-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.mode-name{white-space:nowrap}
+
+/* WORKSPACE */
+.workspace{display:flex;flex:1;min-height:0}
+.sidebar{width:248px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sb-sec{border-bottom:1px solid var(--border);flex-shrink:0}
+.sb-hd{padding:7px 14px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;background:var(--bg2)}
+.sb-hd:hover{background:var(--bg3)}
+.sb-bd{padding:10px 14px;display:flex;flex-direction:column;gap:9px}
+.sb-bd.hid{display:none}
+.preset-list{display:flex;flex-direction:column;gap:1px}
+.preset{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:var(--r);cursor:pointer;font-size:12px;color:var(--text2);transition:all .1s;border:1px solid transparent}
+.preset:hover{background:var(--bg2);color:var(--text)}
+.preset.on{background:var(--accent-bg);color:var(--accent);border-color:rgba(32,167,201,.2)}
+.pdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.param{display:flex;flex-direction:column;gap:4px}
+.prow{display:flex;justify-content:space-between;align-items:center}
+.pname{font-family:var(--mono);font-size:10px;color:var(--text2)}
+.pval{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--accent);background:var(--accent-bg);padding:1px 5px;border-radius:3px}
+.phint{font-size:10px;color:var(--text3)}
+input[type=range]{width:100%;height:3px;-webkit-appearance:none;background:var(--border2);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--accent);border-radius:50%;cursor:pointer}
+.vi{font-size:10px;padding:4px 7px;border-radius:var(--r);line-height:1.5;margin-bottom:3px}
+.vi.ok{background:var(--green-bg);color:var(--green)}.vi.warn{background:var(--yellow-bg);color:var(--yellow)}.vi.err{background:var(--red-bg);color:var(--red)}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* MODE INFO BANNER */
+.mode-banner{padding:7px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--bg2)}
+.mb-icon{font-size:16px;flex-shrink:0}
+.mb-title{font-size:12px;font-weight:600;color:var(--text)}
+.mb-desc{font-size:11px;color:var(--text2);flex:1}
+.mb-tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.3px;flex-shrink:0}
+
+/* STATS */
+.statbar{height:40px;border-bottom:1px solid var(--border);display:flex;align-items:stretch;flex-shrink:0}
+.si{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 12px;border-right:1px solid var(--border)}
+.si:last-child{border-right:none}
+.slb{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
+.sv{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text);line-height:1.2}
+.sv.g{color:var(--green)}.sv.r{color:var(--red)}.sv.b{color:var(--accent)}.sv.p{color:var(--purple)}.sv.o{color:var(--orange)}
+
+/* PIPELINE */
+.pipeline{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.pstage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-right:1px solid var(--border);position:relative;transition:background .2s;padding:6px 4px;min-height:56px}
+.pstage:last-child{border-right:none}
+.pstage.active{background:var(--accent-bg)}.pstage.ok{background:var(--green-bg)}.pstage.err{background:var(--red-bg)}.pstage.warn{background:var(--yellow-bg)}.pstage.pause{background:var(--purple-bg)}
+.psn{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
+.pss{font-family:var(--mono);font-size:10px;color:var(--text2)}
+.pstage.active .psn,.pstage.active .pss{color:var(--accent)}
+.pstage.ok .psn,.pstage.ok .pss{color:var(--green)}
+.pstage.err .psn,.pstage.err .pss{color:var(--red)}
+.pstage.warn .psn,.pstage.warn .pss{color:var(--yellow)}
+.pstage.pause .psn,.pstage.pause .pss{color:var(--purple)}
+.parrow{position:absolute;right:-5px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--text3);z-index:1;background:var(--bg);width:10px;text-align:center}
+
+/* THREAD VIEW */
+.thread-view{border-bottom:1px solid var(--border);flex-shrink:0;padding:8px 14px;display:flex;flex-direction:column;gap:5px}
+.tv-title{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.thread-row{display:flex;align-items:center;gap:8px}
+.thread-label{font-family:var(--mono);font-size:10px;color:var(--text2);width:100px;flex-shrink:0}
+.thread-track{flex:1;height:16px;background:var(--bg3);border-radius:3px;overflow:hidden;position:relative;border:1px solid var(--border)}
+.thread-fill{height:100%;border-radius:2px;transition:width .4s,background .3s;display:flex;align-items:center;padding-left:6px;font-size:9px;font-family:var(--mono);color:#fff;white-space:nowrap;overflow:hidden}
+.thread-status{font-family:var(--mono);font-size:10px;width:90px;text-align:right;flex-shrink:0}
+.thread-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;flex-shrink:0;width:56px;text-align:center}
+.tb-idle{background:var(--bg3);color:var(--text3)}
+.tb-poll{background:var(--purple-bg);color:var(--purple)}
+.tb-proc{background:var(--accent-bg);color:var(--accent)}
+.tb-hb{background:var(--orange-bg);color:var(--orange)}
+.tb-pause{background:var(--purple-bg);color:var(--purple)}
+.tb-err{background:var(--red-bg);color:var(--red)}
+.tb-work{background:var(--teal-bg);color:var(--teal)}
+
+/* MIDROW */
+.midrow{display:grid;grid-template-columns:1fr 236px;border-bottom:1px solid var(--border);overflow:hidden}
+.meters{padding:8px 14px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;border-right:1px solid var(--border)}
+.mtitle{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.mrow{display:grid;grid-template-columns:112px 1fr 48px 52px;align-items:center;gap:8px}
+.mname{font-family:var(--mono);font-size:9px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mtrack{height:3px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.mfill{height:100%;border-radius:2px;transition:width .5s,background .3s}
+.melapsed{font-family:var(--mono);font-size:10px;text-align:right}
+.mlimit{font-family:var(--mono);font-size:9px;color:var(--text3);text-align:right}
+.qpanel{display:flex;flex-direction:column;overflow:hidden}
+.qhead{padding:6px 10px;font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.qcounts{display:flex;gap:5px}
+.qbadge{font-size:9px;padding:1px 5px;border-radius:10px;font-weight:600}
+.qbadge.p{background:var(--yellow-bg);color:var(--yellow)}.qbadge.r{background:var(--accent-bg);color:var(--accent)}.qbadge.d{background:var(--green-bg);color:var(--green)}
+.qlist{flex:1;overflow-y:auto;padding:4px;display:flex;flex-direction:column;gap:2px}
+.qitem{display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:var(--r);font-family:var(--mono);font-size:10px;border:1px solid transparent}
+.qitem.pending{background:var(--yellow-bg);color:var(--yellow);border-color:rgba(245,159,0,.2)}
+.qitem.processing{background:var(--accent-bg);color:var(--accent);border-color:rgba(32,167,201,.2)}
+.qitem.queued{background:var(--teal-bg);color:var(--teal);border-color:rgba(12,166,120,.2)}
+.qitem.done{background:var(--green-bg);color:var(--green);border-color:rgba(55,178,77,.2)}
+.qitem.error{background:var(--red-bg);color:var(--red);border-color:rgba(240,62,62,.2)}
+.qlbl{font-weight:600;flex-shrink:0}.qinfo{flex:1;font-size:9px;opacity:.8}
+.qprog{width:36px;height:3px;background:rgba(0,0,0,.08);border-radius:2px;overflow:hidden;flex-shrink:0}
+.qprogf{height:100%;border-radius:2px;background:currentColor;transition:width .5s}
+
+/* TIMELINE */
+.tlwrap{border-bottom:1px solid var(--border);padding:7px 14px;flex-shrink:0}
+.tlhdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.tltitle{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.tlleg{display:flex;gap:10px}
+.tlleg-item{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--text3)}
+.tlleg-dot{width:8px;height:3px;border-radius:1px}
+canvas#tl{display:block;width:100%}
+
+/* LOG */
+.logwrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.loghd{padding:5px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.logtitle{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.logbody{flex:1;overflow-y:auto;font-family:var(--mono);font-size:11px}
+.logrow{display:flex;align-items:baseline;gap:8px;padding:3px 14px;border-bottom:1px solid var(--border);animation:fi .12s ease}
+.logrow:hover{background:var(--bg2)}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+.logts{color:var(--text3);flex-shrink:0;width:44px;font-size:9px}
+.logtag{flex-shrink:0;font-size:9px;font-weight:700;letter-spacing:.3px;width:64px;text-align:center;padding:1px 0;border-radius:2px}
+.logtag.info{background:var(--accent-bg);color:var(--accent)}.logtag.warn{background:var(--yellow-bg);color:var(--yellow)}
+.logtag.error{background:var(--red-bg);color:var(--red)}.logtag.success{background:var(--green-bg);color:var(--green)}
+.logtag.heartbeat{background:var(--orange-bg);color:var(--orange)}.logtag.poll{background:var(--purple-bg);color:var(--purple)}
+.logtag.thread{background:var(--teal-bg);color:var(--teal)}
+.logmsg{color:var(--text);flex:1}
+
+.ldot{width:6px;height:6px;border-radius:50%;flex-shrink:0;display:inline-block}
+.ldot.g{background:var(--green)}.ldot.r{background:var(--red)}.ldot.y{background:var(--yellow);animation:blink 1s infinite}.ldot.x{background:var(--text3)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes errF{0%,100%{background:var(--bg)}50%{background:var(--red-bg)}}
+.flash{animation:errF .4s ease 3}
+.connst{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--text2)}
+::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand"><div class="bicon">K</div>Kafka Consumer Simulator</div>
+  <div class="div"></div>
+  <div class="connst"><span class="ldot x" id="cdot"></span><span id="clbl">not connected</span></div>
+  <div class="tr">
+    <span class="slbl">Speed</span>
+    <div class="sg">
+      <button class="sp" data-s="0.5">0.5×</button>
+      <button class="sp on" data-s="1">1×</button>
+      <button class="sp" data-s="2">2×</button>
+      <button class="sp" data-s="5">5×</button>
+      <button class="sp" data-s="10">10×</button>
+    </div>
+    <div class="div"></div>
+    <button class="btn btn-g" id="btnReset">Reset</button>
+    <button class="btn btn-d" id="btnStop" disabled>Stop</button>
+    <button class="btn btn-p" id="btnStart">▶ Run</button>
+  </div>
+</div>
+
+<!-- MODE SWITCHER -->
+<div class="mode-bar">
+  <div class="mode-tab on" data-mode="naive" onclick="setMode('naive')">
+    <span class="mode-dot" style="background:var(--red)"></span>
+    <span class="mode-name">Naive (kafka-python)</span>
+  </div>
+  <div class="mode-tab" data-mode="pause_resume" onclick="setMode('pause_resume')">
+    <span class="mode-dot" style="background:var(--green)"></span>
+    <span class="mode-name">pause() / resume()</span>
+  </div>
+  <div class="mode-tab" data-mode="thread_worker" onclick="setMode('thread_worker')">
+    <span class="mode-dot" style="background:var(--accent)"></span>
+    <span class="mode-name">Thread Pool Worker</span>
+  </div>
+  <div class="mode-tab" data-mode="thread_separate" onclick="setMode('thread_separate')">
+    <span class="mode-dot" style="background:var(--purple)"></span>
+    <span class="mode-name">Separate Consumer Thread</span>
+  </div>
+</div>
+
+<div class="workspace">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-sec">
+      <div class="sb-hd" onclick="tog(this)">Scenarios <span>▾</span></div>
+      <div class="sb-bd" style="padding:7px">
+        <div class="preset-list">
+          <div class="preset on" data-p="idle_timeout" onclick="applyPreset('idle_timeout')"><span class="pdot" style="background:var(--red)"></span>Idle Timeout Bug</div>
+          <div class="preset" data-p="healthy" onclick="applyPreset('healthy')"><span class="pdot" style="background:var(--green)"></span>Healthy Consumer</div>
+          <div class="preset" data-p="slow" onclick="applyPreset('slow')"><span class="pdot" style="background:var(--yellow)"></span>Slow Processing</div>
+          <div class="preset" data-p="rebalance" onclick="applyPreset('rebalance')"><span class="pdot" style="background:var(--purple)"></span>Session Timeout</div>
+          <div class="preset" data-p="custom" id="pcustom" onclick="applyPreset('custom')"><span class="pdot" style="background:var(--accent)"></span>Custom</div>
+        </div>
+      </div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-hd" onclick="tog(this)">Messages <span>▾</span></div>
+      <div class="sb-bd">
+        <div class="param"><div class="prow"><span class="pname">num_messages</span><span class="pval" id="v-nm">5</span></div><input type="range" id="nm" min="1" max="20" value="5" oninput="up('nm',this.value)"><span class="phint">total messages to publish</span></div>
+        <div class="param"><div class="prow"><span class="pname">processing_time_s</span><span class="pval" id="v-pt">720s</span></div><input type="range" id="pt" min="10" max="1200" step="10" value="720" oninput="up('pt',this.value)"><span class="phint">time your code takes per msg</span></div>
+        <div class="param"><div class="prow"><span class="pname">arrival_interval_s</span><span class="pval" id="v-ai">30s</span></div><input type="range" id="ai" min="5" max="300" step="5" value="30" oninput="up('ai',this.value)"><span class="phint">gap between messages at broker</span></div>
+        <div class="param" id="param-workers" style="display:none"><div class="prow"><span class="pname">num_worker_threads</span><span class="pval" id="v-wt">3</span></div><input type="range" id="wt" min="1" max="8" value="3" oninput="up('wt',this.value)"><span class="phint">parallel processing threads</span></div>
+      </div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-hd" onclick="tog(this)">Consumer Config <span>▾</span></div>
+      <div class="sb-bd">
+        <div class="param"><div class="prow"><span class="pname">heartbeat_interval_ms</span><span class="pval" id="v-hb">60s</span></div><input type="range" id="hb" min="5" max="300" step="5" value="60" oninput="up('hb',this.value)"><span class="phint">❤️ send alive-ping every N secs</span></div>
+        <div class="param"><div class="prow"><span class="pname">session_timeout_ms</span><span class="pval" id="v-st">180s</span></div><input type="range" id="st" min="30" max="600" step="10" value="180" oninput="up('st',this.value)"><span class="phint">💀 declared dead after no heartbeat</span></div>
+        <div class="param"><div class="prow"><span class="pname">client_idle_ms</span><span class="pval" id="v-ci">3600s</span></div><input type="range" id="ci" min="60" max="3600" step="60" value="3600" oninput="up('ci',this.value)"><span class="phint">🔌 client closes idle socket</span></div>
+        <div class="param"><div class="prow"><span class="pname">max_poll_interval_ms</span><span class="pval" id="v-mp">14400s</span></div><input type="range" id="mp" min="60" max="14400" step="60" value="14400" oninput="up('mp',this.value)"><span class="phint">🗳️ rebalance if poll() not called</span></div>
+      </div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-hd" onclick="tog(this)">Broker Config <span>▾</span></div>
+      <div class="sb-bd">
+        <div class="param"><div class="prow"><span class="pname">broker_idle_ms</span><span class="pval" id="v-bi">600s</span></div><input type="range" id="bi" min="60" max="3600" step="60" value="600" oninput="up('bi',this.value)"><span class="phint">AWS MSK default 600s</span></div>
+      </div>
+    </div>
+    <div class="sb-sec" style="flex:1;overflow-y:auto">
+      <div class="sb-hd" onclick="tog(this)">Config Check <span>▾</span></div>
+      <div class="sb-bd" style="gap:3px" id="vbody"><div class="vi ok">Run to validate config</div></div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- MODE BANNER -->
+    <div class="mode-banner" id="mode-banner">
+      <div class="mb-icon" id="mb-icon">⚠️</div>
+      <div style="flex:1">
+        <div class="mb-title" id="mb-title">Naive kafka-python</div>
+        <div class="mb-desc" id="mb-desc">Main thread blocks on process(). Heartbeat thread starved by GIL. Broker closes idle socket after broker_idle_ms.</div>
+      </div>
+      <div class="mb-tag" id="mb-tag" style="background:var(--red-bg);color:var(--red)">BREAKS</div>
+    </div>
+
+    <!-- STATS -->
+    <div class="statbar">
+      <div class="si"><div class="slb">Sim Time</div><div class="sv b" id="s-t">0s</div></div>
+      <div class="si"><div class="slb">Processed</div><div class="sv g" id="s-p">0</div></div>
+      <div class="si"><div class="slb">Errors</div><div class="sv r" id="s-e">0</div></div>
+      <div class="si"><div class="slb">Heartbeats</div><div class="sv" id="s-h">0</div></div>
+      <div class="si"><div class="slb">Rebalances</div><div class="sv p" id="s-r">0</div></div>
+      <div class="si"><div class="slb">Phase</div><div class="sv" id="s-ph" style="font-size:11px">IDLE</div></div>
+    </div>
+
+    <!-- PIPELINE -->
+    <div class="pipeline" id="pipeline">
+      <div class="pstage" id="ps-prod"><div class="psn">Producer</div><div class="pss" id="ps-prod-s">idle</div><div class="parrow">›</div></div>
+      <div class="pstage" id="ps-brok"><div class="psn">Broker</div><div class="pss" id="ps-brok-s">0 queued</div><div class="parrow">›</div></div>
+      <div class="pstage" id="ps-tcp"><div class="psn">TCP</div><div class="pss" id="ps-tcp-s">—</div><div class="parrow">›</div></div>
+      <div class="pstage" id="ps-poll"><div class="psn">poll()</div><div class="pss" id="ps-poll-s">waiting</div><div class="parrow">›</div></div>
+      <div class="pstage" id="ps-proc"><div class="psn">process()</div><div class="pss" id="ps-proc-s">idle</div><div class="parrow">›</div></div>
+      <div class="pstage" id="ps-comm"><div class="psn">commit()</div><div class="pss" id="ps-comm-s">—</div></div>
+    </div>
+
+    <!-- THREAD VIEW -->
+    <div class="thread-view" id="thread-view">
+      <div class="tv-title">Thread Activity</div>
+      <div id="thread-rows"></div>
+    </div>
+
+    <!-- MID ROW -->
+    <div class="midrow">
+      <div class="meters">
+        <div class="mtitle">Timeout Meters</div>
+        <div class="mrow"><span class="mname">❤️ heartbeat_interval</span><div class="mtrack"><div class="mfill" id="mf-hb" style="width:0%;background:var(--green)"></div></div><span class="melapsed" id="me-hb" style="color:var(--green)">0s</span><span class="mlimit" id="ml-hb">/ —</span></div>
+        <div class="mrow"><span class="mname">💀 session_timeout</span><div class="mtrack"><div class="mfill" id="mf-st" style="width:0%;background:var(--yellow)"></div></div><span class="melapsed" id="me-st" style="color:var(--yellow)">0s</span><span class="mlimit" id="ml-st">/ —</span></div>
+        <div class="mrow"><span class="mname">🔌 client_idle</span><div class="mtrack"><div class="mfill" id="mf-ci" style="width:0%;background:var(--accent)"></div></div><span class="melapsed" id="me-ci" style="color:var(--accent)">0s</span><span class="mlimit" id="ml-ci">/ —</span></div>
+        <div class="mrow"><span class="mname">🏢 broker_idle (MSK)</span><div class="mtrack"><div class="mfill" id="mf-bi" style="width:0%;background:var(--orange)"></div></div><span class="melapsed" id="me-bi" style="color:var(--orange)">0s</span><span class="mlimit" id="ml-bi">/ —</span></div>
+        <div class="mrow"><span class="mname">🗳️ max_poll_interval</span><div class="mtrack"><div class="mfill" id="mf-mp" style="width:0%;background:var(--purple)"></div></div><span class="melapsed" id="me-mp" style="color:var(--purple)">0s</span><span class="mlimit" id="ml-mp">/ —</span></div>
+      </div>
+      <div class="qpanel">
+        <div class="qhead">Messages<div class="qcounts"><span class="qbadge p" id="qp">0</span><span class="qbadge r" id="qr">0</span><span class="qbadge d" id="qd">0</span></div></div>
+        <div class="qlist" id="qlist"></div>
+      </div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="tlwrap">
+      <div class="tlhdr">
+        <span class="tltitle">Activity Timeline</span>
+        <div class="tlleg" id="tlleg">
+          <div class="tlleg-item"><div class="tlleg-dot" style="background:var(--purple)"></div>poll</div>
+          <div class="tlleg-item"><div class="tlleg-dot" style="background:var(--accent)"></div>process</div>
+          <div class="tlleg-item"><div class="tlleg-dot" style="background:var(--orange)"></div>heartbeat</div>
+          <div class="tlleg-item"><div class="tlleg-dot" style="background:var(--red)"></div>error</div>
+          <div class="tlleg-item"><div class="tlleg-dot" style="background:var(--border2)"></div>idle</div>
+        </div>
+      </div>
+      <canvas id="tl" height="52"></canvas>
+    </div>
+
+    <!-- LOG -->
+    <div class="logwrap">
+      <div class="loghd"><span class="logtitle">Event Log</span><button class="btn btn-g" style="height:22px;padding:0 8px;font-size:10px" onclick="clearLog()">Clear</button></div>
+      <div class="logbody" id="logbody"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════
+const C = { nm:5, pt:720, ai:30, hb:60, st:180, ci:3600, mp:14400, bi:600, wt:3 };
+const PRESETS = {
+  idle_timeout: { nm:3, pt:720, ai:30, hb:180, st:600, ci:3600, mp:14400, bi:600 },
+  healthy:      { nm:5, pt:60,  ai:20, hb:60,  st:180, ci:540,  mp:14400, bi:600 },
+  slow:         { nm:4, pt:360, ai:15, hb:60,  st:180, ci:540,  mp:14400, bi:600 },
+  rebalance:    { nm:4, pt:400, ai:20, hb:200, st:200, ci:540,  mp:14400, bi:600 },
+};
+
+// ═══════════════════════════════════════════════════
+//  MODE DEFINITIONS
+// ═══════════════════════════════════════════════════
+const MODES = {
+  naive: {
+    icon:'⚠️', name:'Naive kafka-python', tagText:'BREAKS', tagStyle:'background:var(--red-bg);color:var(--red)',
+    desc:'Main thread blocks entirely on process(). The background heartbeat thread is starved by Python GIL during long processing. Broker closes idle TCP socket after broker_idle_ms. commit() fails with KafkaConnectionError.',
+    threads: [
+      { id:'main',  label:'Main Thread',      color:'var(--accent)' },
+      { id:'hb',    label:'HB Thread (GIL)',   color:'var(--orange)' },
+    ]
+  },
+  pause_resume: {
+    icon:'✅', name:'pause() / resume()', tagText:'SAFE', tagStyle:'background:var(--green-bg);color:var(--green)',
+    desc:'consumer.pause(tp) stops delivering messages but keeps the poll() loop spinning internally. Heartbeats fire reliably. Idle timers reset on every internal poll. Long processing is safe. Simplest fix.',
+    threads: [
+      { id:'main',  label:'Main Thread',      color:'var(--accent)' },
+      { id:'hb',    label:'HB Thread',         color:'var(--orange)' },
+      { id:'poll',  label:'Internal poll()',   color:'var(--purple)' },
+    ]
+  },
+  thread_worker: {
+    icon:'⚙️', name:'Thread Pool Worker', tagText:'PARALLEL', tagStyle:'background:var(--accent-bg);color:var(--accent)',
+    desc:'Main thread polls and immediately dispatches messages to a ThreadPoolExecutor. Poll loop never blocks — heartbeats always fire. Multiple messages processed in parallel. Requires idempotent commit handling.',
+    threads: [
+      { id:'main',   label:'Main Thread',     color:'var(--purple)' },
+      { id:'hb',     label:'HB Thread',        color:'var(--orange)' },
+      { id:'w0',     label:'Worker-0',          color:'var(--teal)' },
+      { id:'w1',     label:'Worker-1',          color:'var(--teal)' },
+      { id:'w2',     label:'Worker-2',          color:'var(--teal)' },
+    ]
+  },
+  thread_separate: {
+    icon:'🔀', name:'Separate Consumer Thread', tagText:'ISOLATED', tagStyle:'background:var(--purple-bg);color:var(--purple)',
+    desc:'Consumer runs in its own dedicated thread. Main thread is free for other work. Consumer thread owns poll/heartbeat/commit lifecycle. Useful when consumer is one component of a larger app.',
+    threads: [
+      { id:'app',    label:'App Thread',       color:'var(--text2)' },
+      { id:'cons',   label:'Consumer Thread',  color:'var(--purple)' },
+      { id:'hb',     label:'HB Thread',         color:'var(--orange)' },
+      { id:'proc',   label:'Proc Thread',       color:'var(--accent)' },
+    ]
+  }
+};
+
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+let T=0, speed=1, running=false, timer=null, mode='naive';
+let S={
+  connected:false, processing:false, currentMsg:null,
+  lastHB:0, lastAct:0, lastPoll:0, procStart:0,
+  messages:[], brokerQ:[], tlEvs:[], curTlEv:null,
+  workerSlots:[], // for thread pool mode
+  stats:{proc:0,err:0,hb:0,reb:0},
+  threads:{} // thread activity states
+};
+
+// ═══════════════════════════════════════════════════
+//  TIMELINE
+// ═══════════════════════════════════════════════════
+const tlC=document.getElementById('tl'), tlX=tlC.getContext('2d');
+function rszTl(){tlC.width=tlC.parentElement.clientWidth-28}
+function drawTl(){
+  rszTl();
+  const w=tlC.width,h=tlC.height;
+  tlX.clearRect(0,0,w,h); tlX.fillStyle='#f8f9fa'; tlX.fillRect(0,0,w,h);
+  if(!S.tlEvs.length){
+    tlX.fillStyle='#adb5bd';tlX.font='10px Inter';
+    tlX.fillText('Timeline will appear when simulation starts...',8,26); return;
+  }
+  const total=Math.max(T,1);
+  const CM={poll:'#7048e8',process:'#20a7c9',heartbeat:'#e8590c',error:'#f03e3e',idle:'#dee2e6',rebalance:'#f59f00',paused:'#7048e8',worker:'#0ca678'};
+  const AW=w-2,ROW=14,G=4,r1=G,r2=r1+ROW+G;
+  tlX.fillStyle='#fff';tlX.fillRect(0,r1,AW,ROW);
+  tlX.fillStyle='#fff';tlX.fillRect(0,r2,AW,ROW);
+  S.tlEvs.forEach(ev=>{
+    const x1=(ev.start/total)*AW,x2=((ev.end||ev.start+.5)/total)*AW;
+    const bw=Math.max(x2-x1,2),isHB=ev.type==='heartbeat';
+    tlX.fillStyle=CM[ev.type]||'#ccc';
+    tlX.globalAlpha=ev.type==='idle'?.4:.85;
+    tlX.fillRect(x1,isHB?r2:r1,bw,ROW);
+    tlX.globalAlpha=1;
+  });
+  tlX.fillStyle='#f1f3f5';tlX.fillRect(0,h-11,w,11);
+  const step=Math.max(Math.ceil(total/6/60)*60,30);
+  for(let t=0;t<=total;t+=step){
+    const x=(t/total)*AW;
+    tlX.fillStyle='#dee2e6';tlX.fillRect(x,0,1,h-11);
+    tlX.fillStyle='#adb5bd';tlX.font='8px monospace';
+    tlX.fillText(fmt(t),x+2,h-2);
+  }
+  tlX.fillStyle='rgba(0,0,0,.25)';tlX.fillRect((T/total)*AW,0,1,h-11);
+}
+function pushTlEv(type){
+  if(S.curTlEv) S.curTlEv.end=T;
+  S.curTlEv={type,start:T,end:null};
+  S.tlEvs.push(S.curTlEv);
+}
+
+// ═══════════════════════════════════════════════════
+//  THREAD VIEW
+// ═══════════════════════════════════════════════════
+function buildThreadView(){
+  const m=MODES[mode];
+  const rows=document.getElementById('thread-rows');
+  rows.innerHTML='';
+  S.threads={};
+  // for thread_worker, build worker slots dynamically
+  let threads=[...m.threads];
+  if(mode==='thread_worker'){
+    threads=threads.filter(t=>!t.id.startsWith('w'));
+    for(let i=0;i<C.wt;i++) threads.push({id:`w${i}`,label:`Worker-${i}`,color:'var(--teal)'});
+  }
+  threads.forEach(t=>{
+    S.threads[t.id]={status:'idle',label:t.id,pct:0,text:'',color:t.color};
+    const row=document.createElement('div');
+    row.className='thread-row';
+    row.innerHTML=`
+      <span class="thread-label">${t.label}</span>
+      <div class="thread-track"><div class="thread-fill" id="tf-${t.id}" style="width:0%;background:${t.color}"></div></div>
+      <span class="thread-badge tb-idle" id="tb-${t.id}">idle</span>
+    `;
+    rows.appendChild(row);
+  });
+}
+
+function setThread(id,badge,pct,text){
+  const fill=document.getElementById(`tf-${id}`);
+  const bel=document.getElementById(`tb-${id}`);
+  if(!fill||!bel) return;
+  const th=S.threads[id];
+  if(!th) return;
+  fill.style.width=pct+'%';
+  fill.style.background=th.color;
+  fill.textContent=pct>15?text:'';
+  bel.className=`thread-badge ${badge}`;
+  bel.textContent=badge.replace('tb-','');
+}
+
+// ═══════════════════════════════════════════════════
+//  SIMULATION — MODE-AWARE
+// ═══════════════════════════════════════════════════
+function initMsgs(){
+  S.messages=Array.from({length:C.nm},(_,i)=>({
+    id:`MSG-${String(i+1).padStart(3,'0')}`,status:'pending',
+    arrivedAt:C.ai*i,processStart:null,processEnd:null,progress:0,worker:null
+  }));
+  S.workerSlots=Array(C.wt).fill(null); // null = free
+}
+
+function tick(){
+  if(!running) return;
+  T++;
+
+  // Produce arriving messages
+  S.messages.forEach(m=>{
+    if(m.status==='pending'&&T>=m.arrivedAt&&!S.brokerQ.includes(m.id)){
+      S.brokerQ.push(m.id);
+      log('info',`${m.id} arrived at broker`);
+      ps('prod','active',`+${m.id}`);
+      setTimeout(()=>ps('prod','','idle'),400/speed);
+    }
+  });
+
+  // Connect
+  if(!S.connected&&!S.processing){
+    S.connected=true; S.lastAct=S.lastHB=S.lastPoll=T;
+    log('success','Consumer connected to broker');
+    ps('tcp','active','connected'); setDot('g','connected'); pushTlEv('poll');
+  }
+  if(!S.connected){updateMeters(0,0,0);updateStats();return;}
+
+  const sHB=T-S.lastHB, sAct=T-S.lastAct, sPoll=T-S.lastPoll;
+
+  // ── MODE-SPECIFIC LOGIC ──
+  if(mode==='naive') tickNaive(sHB,sAct,sPoll);
+  else if(mode==='pause_resume') tickPauseResume(sHB,sAct,sPoll);
+  else if(mode==='thread_worker') tickThreadWorker(sHB,sAct,sPoll);
+  else if(mode==='thread_separate') tickThreadSeparate(sHB,sAct,sPoll);
+
+  updateMeters(T-S.lastHB, T-S.lastAct, T-S.lastPoll);
+  updateStats(); renderMsgs(); drawTl();
+  document.getElementById('ps-brok-s').textContent=`${S.brokerQ.length} queued`;
+
+  if(S.messages.length&&S.messages.every(m=>m.status==='done'||m.status==='error')){
+    log('success','🎉 All messages processed. Complete.');
+    const ph=document.getElementById('s-ph'); ph.textContent='DONE'; ph.style.color='var(--green)';
+    stopSim();
+  }
+}
+
+// ── NAIVE: main thread blocks, heartbeat starved ──
+function tickNaive(sHB,sAct,sPoll){
+  // Broker idle timeout — main cause of the bug
+  if(sAct>=C.bi&&!S.processing){
+    log('error',`💥 BROKER closed conn! broker_idle=${C.bi}s exceeded`);
+    log('error',`KafkaConnectionError: Socket EVENT_READ without in-flight-requests`);
+    S.stats.err++; S.connected=false;
+    ps('tcp','err','💥 broker closed'); setDot('r','broker closed'); pushTlEv('error');
+    setThread('main','tb-err',100,'ERROR: broker closed');
+    flashPl(); setTimeout(()=>reconnect(),1400/speed); return;
+  }
+  // Session timeout (heartbeat starved by GIL during processing)
+  if(sHB>=C.st){
+    log('error',`💀 Session timeout — HB thread starved by GIL during process()! REBALANCE`);
+    S.stats.err++; S.stats.reb++; S.lastHB=T; S.lastAct=T;
+    pushTlEv('rebalance'); setThread('hb','tb-err',100,'starved!');
+    setTimeout(()=>pushTlEv('poll'),500/speed); return;
+  }
+  // Heartbeat — fires only when main thread is NOT blocking (idle polling)
+  if(sHB>=C.hb&&!S.processing){
+    S.lastHB=T; S.stats.hb++; S.lastAct=T;
+    log('heartbeat',`❤️ HB sent (only fires when main thread idle, NOT during process())`);
+    S.tlEvs.push({type:'heartbeat',start:T,end:T+.5});
+    setThread('hb','tb-hb',80,'❤️ sent');
+    setTimeout(()=>setThread('hb','tb-idle',0,''),800/speed);
+  }
+  // Poll & process (blocking main thread)
+  if(!S.processing){
+    if(sPoll>=3){
+      S.lastPoll=T; S.lastAct=T;
+      if(S.brokerQ.length>0){
+        const id=S.brokerQ.shift();
+        const m=S.messages.find(x=>x.id===id);
+        if(m){
+          m.status='processing'; S.currentMsg=m; S.processing=true; S.procStart=T; m.processStart=T;
+          log('info',`poll() → ${m.id} — main thread now BLOCKED for ${C.pt}s`);
+          log('warn',`⚠️ HB thread cannot fire while main thread is blocked (GIL)`);
+          ps('poll','active','got msg'); ps('proc','active','blocking...');
+          setThread('main','tb-proc',5,'processing... (BLOCKING)');
+          pushTlEv('process');
+        }
+      } else {
+        if(T%20===0) log('poll',`poll() — empty`);
+        setThread('main','tb-poll',30,'polling');
+        setTimeout(()=>setThread('main','tb-idle',0,''),600/speed);
+      }
+    }
+  } else {
+    // Main thread is blocked — heartbeat CANNOT fire
+    const el=T-S.procStart;
+    S.currentMsg.progress=Math.min(el/C.pt,1);
+    const pct=Math.round(S.currentMsg.progress*100);
+    setThread('main','tb-proc',Math.max(pct,5),`${pct}% — BLOCKING MAIN THREAD`);
+    setThread('hb','tb-err',Math.min(Math.round(sHB/C.hb*60),60),`starved ${fmt(sHB)}`);
+    if(el>=C.pt){
+      S.currentMsg.status='done'; S.currentMsg.processEnd=T; S.stats.proc++;
+      // Commit attempt on potentially dead socket
+      if(T-S.lastAct>=C.bi-5){
+        log('error',`commit() → 💥 socket dead! broker closed ${fmt(T-S.lastAct)} ago`);
+        S.stats.err++;
+      } else {
+        log('success',`✅ ${S.currentMsg.id} done (${el}s) — commit() OK`);
+      }
+      ps('proc','ok','done'); ps('comm','ok','committed');
+      setTimeout(()=>{ps('comm','','—');ps('proc','','idle')},600/speed);
+      setThread('main','tb-idle',0,''); setThread('hb','tb-idle',0,'');
+      S.processing=false; S.currentMsg=null; S.lastAct=S.lastPoll=T; pushTlEv('poll');
+    }
+  }
+}
+
+// ── PAUSE/RESUME: keeps poll() loop spinning ──
+function tickPauseResume(sHB,sAct,sPoll){
+  // No broker idle — internal poll keeps resetting activity
+  if(sHB>=C.hb){
+    S.lastHB=T; S.stats.hb++; S.lastAct=T;
+    log('heartbeat',`❤️ HB fired (internal poll() keeps loop alive even while paused)`);
+    S.tlEvs.push({type:'heartbeat',start:T,end:T+.5});
+    setThread('hb','tb-hb',80,'❤️ sent');
+    setTimeout(()=>setThread('hb','tb-idle',0,''),600/speed);
+  }
+  if(!S.processing){
+    if(sPoll>=3){
+      S.lastPoll=T; S.lastAct=T;
+      if(S.brokerQ.length>0){
+        const id=S.brokerQ.shift();
+        const m=S.messages.find(x=>x.id===id);
+        if(m){
+          m.status='processing'; S.currentMsg=m; S.processing=true; S.procStart=T; m.processStart=T;
+          log('info',`poll() → ${m.id} — partition PAUSED, processing starts`);
+          log('info',`consumer.pause(tp) — internal poll() keeps spinning & heartbeating`);
+          ps('poll','pause','paused ✓'); ps('proc','active','running...');
+          setThread('main','tb-proc',5,'process() running');
+          setThread('poll','tb-pause',60,'internal spin');
+          pushTlEv('process');
+        }
+      } else {
+        if(T%20===0) log('poll',`poll() — empty (internal loop active)`);
+        setThread('main','tb-poll',30,'poll spin');
+        setTimeout(()=>setThread('main','tb-idle',0,''),500/speed);
+      }
+    }
+    // Internal poll keeps resetting idle
+    S.lastAct=T; S.lastPoll=T;
+  } else {
+    // Paused — internal poll spins safely
+    S.lastAct=T; S.lastPoll=T; // internal poll resets these
+    const el=T-S.procStart;
+    S.currentMsg.progress=Math.min(el/C.pt,1);
+    const pct=Math.round(S.currentMsg.progress*100);
+    setThread('main','tb-proc',Math.max(pct,5),`${pct}% complete`);
+    setThread('poll','tb-pause',60+Math.sin(T*.5)*20,'spinning ♻');
+    if(el>=C.pt){
+      S.currentMsg.status='done'; S.currentMsg.processEnd=T; S.stats.proc++;
+      log('success',`✅ ${S.currentMsg.id} done (${el}s) — consumer.resume(tp) → commit()`);
+      ps('proc','ok','done'); ps('poll','active','resumed'); ps('comm','ok','committed');
+      setTimeout(()=>{ps('comm','','—');ps('proc','','idle');ps('poll','','waiting')},600/speed);
+      setThread('main','tb-idle',0,''); setThread('poll','tb-idle',0,'');
+      S.processing=false; S.currentMsg=null; S.lastAct=S.lastPoll=T; pushTlEv('poll');
+    }
+  }
+}
+
+// ── THREAD POOL: parallel dispatch ──
+function tickThreadWorker(sHB,sAct,sPoll){
+  // Main thread never blocks — always polling
+  S.lastAct=T; S.lastPoll=T;
+  if(sHB>=C.hb){
+    S.lastHB=T; S.stats.hb++; S.lastAct=T;
+    log('heartbeat',`❤️ HB fired (main thread free, always polling)`);
+    S.tlEvs.push({type:'heartbeat',start:T,end:T+.5});
+    setThread('hb','tb-hb',80,'❤️ sent');
+    setTimeout(()=>setThread('hb','tb-idle',0,''),600/speed);
+  }
+  // Dispatch to free workers
+  if(S.brokerQ.length>0){
+    for(let i=0;i<C.wt;i++){
+      if(!S.workerSlots[i]&&S.brokerQ.length>0){
+        const id=S.brokerQ.shift();
+        const m=S.messages.find(x=>x.id===id);
+        if(m){
+          m.status='processing'; m.processStart=T; m.progress=0; m.worker=i;
+          S.workerSlots[i]={msg:m, start:T};
+          log('thread',`${m.id} → Worker-${i} (ThreadPoolExecutor.submit)`);
+          ps('poll','active','dispatching'); ps('proc','active',`${C.wt} workers`);
+          setThread(`w${i}`,'tb-work',5,`${m.id} — 0%`);
+          pushTlEv('process');
+        }
+      }
+    }
+  }
+  setThread('main','tb-poll',40,'polling + dispatching');
+  // Advance worker progress
+  for(let i=0;i<C.wt;i++){
+    if(S.workerSlots[i]){
+      const slot=S.workerSlots[i];
+      const el=T-slot.start;
+      slot.msg.progress=Math.min(el/C.pt,1);
+      const pct=Math.round(slot.msg.progress*100);
+      setThread(`w${i}`,'tb-work',Math.max(pct,5),`${slot.msg.id} — ${pct}%`);
+      if(el>=C.pt){
+        slot.msg.status='done'; slot.msg.processEnd=T; S.stats.proc++;
+        log('success',`✅ Worker-${i}: ${slot.msg.id} done (${el}s) — commit()`);
+        setThread(`w${i}`,'tb-idle',0,'');
+        S.workerSlots[i]=null;
+        if(S.messages.filter(m=>m.status==='processing').length===0){
+          ps('proc','ok','all done');
+        }
+      }
+    }
+  }
+  // Show main thread polling status
+  if(S.brokerQ.length===0&&S.workerSlots.every(w=>!w)){
+    setThread('main','tb-poll',20,'waiting for msgs');
+  }
+}
+
+// ── SEPARATE THREAD: consumer in own thread ──
+function tickThreadSeparate(sHB,sAct,sPoll){
+  // Consumer thread owns kafka lifecycle
+  if(sHB>=C.hb){
+    S.lastHB=T; S.stats.hb++; S.lastAct=T;
+    log('heartbeat',`❤️ HB fired (consumer thread owns kafka lifecycle independently)`);
+    S.tlEvs.push({type:'heartbeat',start:T,end:T+.5});
+    setThread('hb','tb-hb',80,'❤️ sent');
+    setThread('cons','tb-poll',50,'heartbeating');
+    setTimeout(()=>{setThread('hb','tb-idle',0,'');setThread('cons','tb-poll',30,'polling')},600/speed);
+  }
+  setThread('app','tb-idle',20,'app running...');
+  setThread('cons','tb-poll',30,'polling kafka');
+  if(!S.processing){
+    S.lastAct=T; S.lastPoll=T;
+    if(S.brokerQ.length>0&&sPoll>=3){
+      const id=S.brokerQ.shift();
+      const m=S.messages.find(x=>x.id===id);
+      if(m){
+        m.status='processing'; S.currentMsg=m; S.processing=true; S.procStart=T; m.processStart=T;
+        log('info',`Consumer thread: poll() → ${m.id} → handed to proc thread`);
+        ps('poll','active','got msg'); ps('proc','active','proc thread');
+        setThread('cons','tb-poll',40,'polling (owns kafka)');
+        setThread('proc','tb-proc',5,'processing');
+        pushTlEv('process');
+      }
+    }
+  } else {
+    // Consumer thread keeps polling/heartbeating independently
+    S.lastAct=T; S.lastPoll=T;
+    const el=T-S.procStart;
+    S.currentMsg.progress=Math.min(el/C.pt,1);
+    const pct=Math.round(S.currentMsg.progress*100);
+    setThread('cons','tb-poll',40,'polling (isolated)');
+    setThread('proc','tb-proc',Math.max(pct,5),`${pct}% — proc thread`);
+    if(el>=C.pt){
+      S.currentMsg.status='done'; S.currentMsg.processEnd=T; S.stats.proc++;
+      log('success',`✅ ${S.currentMsg.id} done — consumer thread commits`);
+      ps('proc','ok','done'); ps('comm','ok','committed');
+      setTimeout(()=>{ps('comm','','—');ps('proc','','idle')},600/speed);
+      setThread('proc','tb-idle',0,'');
+      S.processing=false; S.currentMsg=null; pushTlEv('poll');
+    }
+  }
+}
+
+function reconnect(){
+  if(!running) return;
+  log('warn','Reconnecting to broker...');
+  S.connected=true; S.lastAct=S.lastHB=S.lastPoll=T;
+  ps('tcp','active','reconnected'); setDot('g','reconnected'); pushTlEv('poll');
+  log('success','Reconnected ✓');
+}
+
+// ═══════════════════════════════════════════════════
+//  METERS
+// ═══════════════════════════════════════════════════
+function updateMeters(sHB,sAct,sPoll){
+  const M=[['hb',sHB,C.hb,'var(--green)','var(--yellow)','var(--red)'],
+           ['st',sHB,C.st,'var(--yellow)','var(--orange)','var(--red)'],
+           ['ci',sAct,C.ci,'var(--accent)','var(--yellow)','var(--red)'],
+           ['bi',sAct,C.bi,'var(--orange)','var(--red)','var(--red)'],
+           ['mp',sPoll,C.mp,'var(--purple)','var(--yellow)','var(--red)']];
+  M.forEach(([id,val,lim,c1,c2,c3])=>{
+    const pct=Math.min(val/lim*100,100),col=pct<50?c1:pct<80?c2:c3;
+    document.getElementById(`mf-${id}`).style.width=pct+'%';
+    document.getElementById(`mf-${id}`).style.background=col;
+    document.getElementById(`me-${id}`).textContent=fmt(val);
+    document.getElementById(`me-${id}`).style.color=col;
+    document.getElementById(`ml-${id}`).textContent=`/ ${fmt(lim)}`;
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════
+function renderMsgs(){
+  const list=document.getElementById('qlist'); list.innerHTML='';
+  let p=0,r=0,d=0;
+  S.messages.forEach(m=>{
+    const el=document.createElement('div');
+    let cls=m.status==='done'?'done':m.status==='processing'?'processing':'pending';
+    if(m.status==='processing'&&mode==='thread_worker') cls='queued';
+    el.className=`qitem ${cls}`;
+    if(cls==='pending') p++; else if(cls==='processing'||cls==='queued') r++; else d++;
+    const icon=m.status==='done'?'✓':m.status==='processing'?'⚙':'·';
+    const wlbl=m.worker!=null?` W${m.worker}`:'';
+    const info=m.status==='processing'?`${Math.round(m.progress*100)}%${wlbl} · ${Math.round(T-m.processStart)}/${C.pt}s`:m.status==='done'?`${m.processEnd-m.processStart}s`:`@${m.arrivedAt}s`;
+    const prog=m.status==='processing'?`<div class="qprog"><div class="qprogf" style="width:${Math.round(m.progress*100)}%"></div></div>`:'';
+    el.innerHTML=`<span class="qlbl">${icon} ${m.id}</span><span class="qinfo">${info}</span>${prog}`;
+    list.appendChild(el);
+  });
+  document.getElementById('qp').textContent=p;
+  document.getElementById('qr').textContent=r;
+  document.getElementById('qd').textContent=d;
+}
+
+function updateStats(){
+  document.getElementById('s-t').textContent=fmt(T);
+  document.getElementById('s-p').textContent=S.stats.proc;
+  document.getElementById('s-e').textContent=S.stats.err;
+  document.getElementById('s-h').textContent=S.stats.hb;
+  document.getElementById('s-r').textContent=S.stats.reb;
+  if(running){
+    const ph=S.processing?'PROCESSING':S.connected?'POLLING':'RECONNECTING';
+    if(mode==='thread_worker'&&S.workerSlots.some(w=>w)) document.getElementById('s-ph').textContent='PARALLEL';
+    else document.getElementById('s-ph').textContent=ph;
+    document.getElementById('s-ph').style.color=S.processing?'var(--accent)':S.connected?'var(--green)':'var(--yellow)';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  LOG
+// ═══════════════════════════════════════════════════
+function log(type,msg){
+  const body=document.getElementById('logbody');
+  const row=document.createElement('div'); row.className='logrow';
+  row.innerHTML=`<span class="logts">${fmt(T)}</span><span class="logtag ${type}">${type.toUpperCase()}</span><span class="logmsg">${msg}</span>`;
+  body.prepend(row);
+  while(body.children.length>150) body.removeChild(body.lastChild);
+}
+function clearLog(){document.getElementById('logbody').innerHTML=''}
+
+// ═══════════════════════════════════════════════════
+//  PIPELINE
+// ═══════════════════════════════════════════════════
+function ps(id,cls,txt){
+  const el=document.getElementById(`ps-${id}`),st=document.getElementById(`ps-${id}-s`);
+  if(!el||!st) return;
+  el.className=`pstage${cls?' '+cls:''}`;
+  st.textContent=txt;
+}
+function setDot(c,lbl){
+  document.getElementById('cdot').className=`ldot ${c}`;
+  document.getElementById('clbl').textContent=lbl;
+}
+function flashPl(){
+  const p=document.getElementById('pipeline');
+  p.classList.add('flash'); setTimeout(()=>p.classList.remove('flash'),1200);
+}
+
+// ═══════════════════════════════════════════════════
+//  CONTROLS
+// ═══════════════════════════════════════════════════
+function startSim(){
+  if(running) return; running=true;
+  document.getElementById('btnStart').disabled=true;
+  document.getElementById('btnStop').disabled=false;
+  log('info',`[${MODES[mode].name}] Started — ${C.nm} msgs, ${C.pt}s/msg`);
+  validate();
+  timer=setInterval(tick,1000/speed);
+}
+function stopSim(){
+  running=false; clearInterval(timer);
+  document.getElementById('btnStart').disabled=false;
+  document.getElementById('btnStop').disabled=true;
+}
+function resetSim(){
+  stopSim(); T=0;
+  S={connected:false,processing:false,currentMsg:null,lastHB:0,lastAct:0,lastPoll:0,procStart:0,
+     messages:[],brokerQ:[],tlEvs:[],curTlEv:null,workerSlots:[],stats:{proc:0,err:0,hb:0,reb:0},threads:{}};
+  initMsgs(); buildThreadView();
+  renderMsgs(); drawTl(); updateStats(); clearLog();
+  ['prod','brok','tcp','poll','proc','comm'].forEach(id=>ps(id,'','idle'));
+  ps('tcp','','—'); setDot('x','not connected');
+  const ph=document.getElementById('s-ph'); ph.textContent='IDLE'; ph.style.color='var(--text)';
+  updateMeters(0,0,0);
+}
+
+document.getElementById('btnStart').onclick=startSim;
+document.getElementById('btnStop').onclick=stopSim;
+document.getElementById('btnReset').onclick=resetSim;
+document.querySelectorAll('.sp').forEach(b=>{
+  b.onclick=()=>{
+    speed=parseFloat(b.dataset.s);
+    document.querySelectorAll('.sp').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    if(running){clearInterval(timer);timer=setInterval(tick,1000/speed);}
+  };
+});
+
+// ═══════════════════════════════════════════════════
+//  MODE SWITCHING
+// ═══════════════════════════════════════════════════
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('on',t.dataset.mode===m));
+  const md=MODES[m];
+  document.getElementById('mb-icon').textContent=md.icon;
+  document.getElementById('mb-title').textContent=md.name;
+  document.getElementById('mb-desc').textContent=md.desc;
+  document.getElementById('mb-tag').textContent=md.tagText;
+  document.getElementById('mb-tag').style.cssText=md.tagStyle;
+  document.getElementById('param-workers').style.display=(m==='thread_worker'?'flex':'none');
+  resetSim();
+}
+
+// ═══════════════════════════════════════════════════
+//  PARAMS
+// ═══════════════════════════════════════════════════
+const UNIT={nm:'',pt:'s',ai:'s',hb:'s',st:'s',ci:'s',mp:'s',bi:'s',wt:''};
+function up(k,v){
+  C[k]=parseFloat(v);
+  document.getElementById(`v-${k}`).textContent=v+(UNIT[k]||'');
+  markCustom(); validate(); if(!running) resetSim();
+}
+function syncUI(){Object.keys(C).forEach(k=>{const el=document.getElementById(k);if(el)el.value=C[k];up(k,C[k]);})}
+function applyPreset(name){
+  const p=PRESETS[name]; if(p){Object.assign(C,p);syncUI();}
+  document.querySelectorAll('.preset').forEach(el=>el.classList.toggle('on',el.dataset.p===name));
+  if(!running) resetSim();
+}
+function markCustom(){document.querySelectorAll('.preset').forEach(el=>el.classList.remove('on'));document.getElementById('pcustom').classList.add('on');}
+
+// ═══════════════════════════════════════════════════
+//  VALIDATION
+// ═══════════════════════════════════════════════════
+function validate(){
+  const issues=[];
+  if(C.hb>=C.st) issues.push({t:'err',m:`heartbeat (${C.hb}s) must be < session (${C.st}s)`});
+  if(mode==='naive'&&C.ci>=C.bi) issues.push({t:'err',m:`client_idle (${C.ci}s) ≥ broker_idle (${C.bi}s) → KafkaConnectionError!`});
+  if(mode==='naive'&&C.pt>=C.bi) issues.push({t:'warn',m:`processing (${C.pt}s) > broker_idle — will trigger error`});
+  if(C.hb>C.st/3) issues.push({t:'warn',m:`heartbeat should be ≤ ⅓ of session_timeout`});
+  if(mode!=='naive') issues.push({t:'ok',m:`${MODES[mode].name} — no idle timeout risk ✓`});
+  if(!issues.length) issues.push({t:'ok',m:'Config looks healthy ✓'});
+  document.getElementById('vbody').innerHTML=issues.map(i=>`<div class="vi ${i.t}">${i.m}</div>`).join('');
+}
+
+function fmt(s){
+  s=Math.floor(s);
+  if(s<60) return `${s}s`;
+  const m=Math.floor(s/60),sec=s%60;
+  if(m<60) return sec?`${m}m${sec}s`:`${m}m`;
+  const h=Math.floor(m/60),min=m%60;
+  return min?`${h}h${min}m`:`${h}h`;
+}
+function tog(hdr){
+  const body=hdr.nextElementSibling,span=hdr.querySelector('span:last-child');
+  body.classList.toggle('hid');
+  if(span) span.textContent=body.classList.contains('hid')?'›':'▾';
+}
+
+window.addEventListener('resize',drawTl);
+setMode('naive');
+applyPreset('idle_timeout');
+</script>
+</body>
+</html>
